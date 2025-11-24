@@ -1,6 +1,7 @@
 # to-freelance
 
 Projet React initialisé avec Vite et configuré avec Jotai, React Router, Tailwind CSS et Radix UI.
+test
 
 ## Scripts
 
