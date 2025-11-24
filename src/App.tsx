@@ -1,5 +1,5 @@
-import { Link, Outlet } from 'react-router-dom'
 import { Flex, Heading, Separator, Text } from '@radix-ui/themes'
+import Home from './views/Home'
 
 function App() {
   return (
@@ -11,12 +11,9 @@ function App() {
             TJM → rémunération + dividendes (France, président assimilé salarié)
           </Text>
         </div>
-        <nav className="flex gap-4 text-sm font-semibold uppercase tracking-wide text-cyan-300">
-          <Link to="/">Accueil</Link>
-        </nav>
       </Flex>
       <Separator size="4" className="mb-6" />
-      <Outlet />
+      <Home />
     </div>
   )
 }
