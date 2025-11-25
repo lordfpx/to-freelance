@@ -33,7 +33,6 @@ import {
   totalDeductiblesAtom,
   totalPayrollCostAtom,
   totalTakeHomeAtom,
-  type DeductibleCharge,
   type Simulation,
   type SimulationData,
 } from '../state/simulation'
@@ -198,7 +197,7 @@ function Home() {
     [],
   )
 
-  const applySimulationData = (data: SimulationData) => {
+  const applySimulationData = useMemo(() => (data: SimulationData) => {
     const normalized = withDefaultSimulationData(data)
     setTjm(normalized.tjm)
     setDaysWorked(normalized.daysWorked)
@@ -209,13 +208,13 @@ function Home() {
     setCorporateTaxNormalRate(normalized.corporateTaxNormalRate)
     setCorporateTaxThreshold(normalized.corporateTaxThreshold)
     setDividendFlatTaxRate(normalized.dividendFlatTaxRate)
-  }
+  }, [setCorporateTaxNormalRate, setCorporateTaxReducedRate, setCorporateTaxThreshold, setDaysWorked, setDeductibleCharges, setDividendFlatTaxRate, setMonthlyNetSalary, setMonthlyTaxRate, setTjm])
 
   useEffect(() => {
     if (!activeSimulation) return
     applySimulationData(activeSimulation.data)
     setHasHydrated(true)
-  }, [activeSimulationId])
+  }, [activeSimulation, activeSimulationId, applySimulationData])
 
   useEffect(() => {
     if (!hasHydrated || !activeSimulation) return
