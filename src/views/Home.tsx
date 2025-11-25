@@ -1,19 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAtom } from 'jotai'
-import { atom } from 'jotai'
-import {
-  Box,
-  Button,
-  Card,
-  Flex,
-  Grid,
-  Heading,
-  Inset,
-  Separator,
-  Text,
-  TextArea,
-  TextField,
-} from '@radix-ui/themes'
+import { atom, useAtom } from 'jotai'
 import { nanoid } from 'nanoid'
 
 // Inputs
@@ -35,8 +21,6 @@ type SimulationData = {
   monthlyNetSalary: number
   monthlyIncomeTaxRate: number
   deductibleCharges: DeductibleCharge[]
-  employeeContribRate: number
-  employerContribRate: number
   corporateTaxReducedRate: number
   corporateTaxNormalRate: number
   corporateTaxThreshold: number
@@ -52,6 +36,9 @@ type Simulation = {
 
 const SIMULATIONS_KEY = 'sasu-simulations'
 const ACTIVE_SIMULATION_KEY = 'sasu-active-simulation-id'
+// Coefficients moyens 2025 pour un président assimilé salarié (charges hors cas particuliers)
+const EMPLOYEE_CONTRIB_RATE = 0.225 // charges salariales ~22,5 %
+const EMPLOYER_CONTRIB_RATE = 0.433 // charges patronales ~43,3 %
 const DEFAULT_SIMULATION_DATA: SimulationData = {
   tjm: 650,
   daysWorked: 180,
@@ -62,8 +49,6 @@ const DEFAULT_SIMULATION_DATA: SimulationData = {
     { id: nanoid(), label: 'Matériel et amortissements', amount: 2200 },
     { id: nanoid(), label: 'Frais de déplacement', amount: 1200 },
   ],
-  employeeContribRate: 0.22,
-  employerContribRate: 0.45,
   corporateTaxReducedRate: 0.15,
   corporateTaxNormalRate: 0.25,
   corporateTaxThreshold: 42500,
@@ -73,8 +58,6 @@ const DEFAULT_SIMULATION_DATA: SimulationData = {
 const deductibleChargesAtom = atom<DeductibleCharge[]>(DEFAULT_SIMULATION_DATA.deductibleCharges)
 
 // Assumptions for a SASU with président assimilé salarié
-const employeeContribRateAtom = atom(0.22) // net -> gross uplift
-const employerContribRateAtom = atom(0.45)
 const corporateTaxReducedRateAtom = atom(0.15)
 const corporateTaxNormalRateAtom = atom(0.25)
 const corporateTaxThresholdAtom = atom(42500)
@@ -87,11 +70,10 @@ const annualNetSalaryAtom = atom((get) => get(monthlyNetSalaryAtom) * 12)
 
 const annualGrossSalaryAtom = atom((get) => {
   const net = get(annualNetSalaryAtom)
-  const employeeRate = get(employeeContribRateAtom)
-  return net / (1 - employeeRate)
+  return net / (1 - EMPLOYEE_CONTRIB_RATE)
 })
 
-const annualEmployerContribAtom = atom((get) => get(annualGrossSalaryAtom) * get(employerContribRateAtom))
+const annualEmployerContribAtom = atom((get) => get(annualGrossSalaryAtom) * EMPLOYER_CONTRIB_RATE)
 
 const totalPayrollCostAtom = atom((get) => get(annualGrossSalaryAtom) + get(annualEmployerContribAtom))
 
@@ -129,14 +111,17 @@ const currencyFormatter = new Intl.NumberFormat('fr-FR', {
   maximumFractionDigits: 0,
 })
 
+const cardClass =
+  'rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5 shadow-xl shadow-black/20 backdrop-blur transition'
+const sectionTitleClass = 'text-xl font-semibold text-white'
+const helperTextClass = 'text-sm text-white/70'
+
 function areSimulationDataEqual(a: SimulationData, b: SimulationData) {
   if (
     a.tjm !== b.tjm ||
     a.daysWorked !== b.daysWorked ||
     a.monthlyNetSalary !== b.monthlyNetSalary ||
     a.monthlyIncomeTaxRate !== b.monthlyIncomeTaxRate ||
-    a.employeeContribRate !== b.employeeContribRate ||
-    a.employerContribRate !== b.employerContribRate ||
     a.corporateTaxReducedRate !== b.corporateTaxReducedRate ||
     a.corporateTaxNormalRate !== b.corporateTaxNormalRate ||
     a.corporateTaxThreshold !== b.corporateTaxThreshold ||
@@ -162,8 +147,6 @@ function withDefaultSimulationData(data?: Partial<SimulationData>): SimulationDa
     deductibleCharges: data.deductibleCharges?.length
       ? data.deductibleCharges
       : DEFAULT_SIMULATION_DATA.deductibleCharges,
-    employeeContribRate: data.employeeContribRate ?? DEFAULT_SIMULATION_DATA.employeeContribRate,
-    employerContribRate: data.employerContribRate ?? DEFAULT_SIMULATION_DATA.employerContribRate,
     corporateTaxReducedRate: data.corporateTaxReducedRate ?? DEFAULT_SIMULATION_DATA.corporateTaxReducedRate,
     corporateTaxNormalRate: data.corporateTaxNormalRate ?? DEFAULT_SIMULATION_DATA.corporateTaxNormalRate,
     corporateTaxThreshold: data.corporateTaxThreshold ?? DEFAULT_SIMULATION_DATA.corporateTaxThreshold,
@@ -215,8 +198,6 @@ function Home() {
   const [monthlyNetSalary, setMonthlyNetSalary] = useAtom(monthlyNetSalaryAtom)
   const [monthlyTaxRate, setMonthlyTaxRate] = useAtom(monthlyIncomeTaxRateAtom)
   const [deductibleCharges, setDeductibleCharges] = useAtom(deductibleChargesAtom)
-  const [employeeContribRate, setEmployeeContribRate] = useAtom(employeeContribRateAtom)
-  const [employerContribRate, setEmployerContribRate] = useAtom(employerContribRateAtom)
   const [corporateTaxReducedRate, setCorporateTaxReducedRate] = useAtom(corporateTaxReducedRateAtom)
   const [corporateTaxNormalRate, setCorporateTaxNormalRate] = useAtom(corporateTaxNormalRateAtom)
   const [corporateTaxThreshold, setCorporateTaxThreshold] = useAtom(corporateTaxThresholdAtom)
@@ -242,8 +223,6 @@ function Home() {
       monthlyNetSalary,
       monthlyIncomeTaxRate: monthlyTaxRate,
       deductibleCharges,
-      employeeContribRate,
-      employerContribRate,
       corporateTaxReducedRate,
       corporateTaxNormalRate,
       corporateTaxThreshold,
@@ -256,28 +235,26 @@ function Home() {
       daysWorked,
       deductibleCharges,
       dividendFlatTaxRate,
-      employeeContribRate,
-      employerContribRate,
       monthlyNetSalary,
       monthlyTaxRate,
       tjm,
     ],
   )
 
-const [initialSimulationState] = useState(() => {
-  const { simulations: storedSimulations, activeId } = readSimulationsFromStorage()
-  const fallbackData = withDefaultSimulationData(currentData)
-  const simulations =
-    storedSimulations.length > 0
-      ? storedSimulations
-      : [
-          {
-            id: nanoid(),
-            name: 'Simulation 1',
-            data: fallbackData,
-            updatedAt: Date.now(),
-          },
-        ]
+  const [initialSimulationState] = useState(() => {
+    const { simulations: storedSimulations, activeId } = readSimulationsFromStorage()
+    const fallbackData = withDefaultSimulationData(currentData)
+    const simulations =
+      storedSimulations.length > 0
+        ? storedSimulations
+        : [
+            {
+              id: nanoid(),
+              name: 'Simulation 1',
+              data: fallbackData,
+              updatedAt: Date.now(),
+            },
+          ]
     const activeSimulationId =
       (activeId && simulations.find((sim) => sim.id === activeId)?.id) || simulations[0].id
 
@@ -306,8 +283,6 @@ const [initialSimulationState] = useState(() => {
     setMonthlyNetSalary(normalized.monthlyNetSalary)
     setMonthlyTaxRate(normalized.monthlyIncomeTaxRate)
     setDeductibleCharges(normalized.deductibleCharges)
-    setEmployeeContribRate(normalized.employeeContribRate)
-    setEmployerContribRate(normalized.employerContribRate)
     setCorporateTaxReducedRate(normalized.corporateTaxReducedRate)
     setCorporateTaxNormalRate(normalized.corporateTaxNormalRate)
     setCorporateTaxThreshold(normalized.corporateTaxThreshold)
@@ -444,96 +419,96 @@ const [initialSimulationState] = useState(() => {
   }
 
   return (
-    <Flex direction="column" gap="6">
-      <header>
-        <Heading size="7" className="text-white">
-          Simulateur de revenus SASU (président assimilé salarié)
-        </Heading>
-        <Text size="3" color="gray">
-          Paramétrez vos données (TJM, jours, salaire net visé et charges déductibles) pour estimer la rémunération
-          nette et les dividendes après IS et PFU.
-        </Text>
-      </header>
-
-      <Card>
-        <Flex direction="column" gap="3">
-          <Flex justify="between" align="center">
-            <Heading size="5">Simulations sauvegardées</Heading>
-            <Button onClick={handleCreateSimulation} color="cyan">
-              Nouvelle simulation
-            </Button>
-          </Flex>
-          <Text size="2" color="gray">
-            Données enregistrées automatiquement dans ce navigateur. Ouvrez, renommez ou supprimez une simulation.
-          </Text>
-          <Flex direction="column" gap="2">
-            {simulations.map((simulation) => {
-              const isActive = simulation.id === activeSimulationId
-              return (
-                <Box
-                  key={simulation.id}
-                  className={`rounded-lg border px-3 py-3 ${isActive ? 'border-cyan-500/60 bg-cyan-500/10' : 'border-white/10 bg-white/5'}`}
-                >
-                  <Flex justify="between" align="center" gap="3" wrap="wrap">
-                    <div>
-                      <Flex align="center" gap="2">
-                        <Text size="3" weight="bold" color={isActive ? 'cyan' : 'gray'}>
-                          {simulation.name}
-                        </Text>
-                        {isActive && (
-                          <Text size="1" color="cyan" weight="medium" className="uppercase tracking-wide">
-                            active
-                          </Text>
-                        )}
-                      </Flex>
-                      <Text size="1" color="gray">
-                        Mise à jour : {dateFormatter.format(new Date(simulation.updatedAt))}
-                      </Text>
-                    </div>
-                    <Flex gap="2" wrap="wrap" justify="end">
-                      {!isActive && (
-                        <Button size="2" variant="surface" onClick={() => handleSelectSimulation(simulation.id)}>
-                          Ouvrir
-                        </Button>
+    <div className="flex flex-col gap-6">
+      <div className={cardClass}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className={sectionTitleClass}>Simulations sauvegardées</h2>
+            <p className={helperTextClass}>
+              Données enregistrées automatiquement dans ce navigateur. Ouvrez, renommez ou supprimez une simulation.
+            </p>
+          </div>
+          <button
+            onClick={handleCreateSimulation}
+            className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-0"
+          >
+            Nouvelle simulation
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col gap-3">
+          {simulations.map((simulation) => {
+            const isActive = simulation.id === activeSimulationId
+            return (
+              <div
+                key={simulation.id}
+                className={`rounded-xl border px-4 py-3 transition ${
+                  isActive ? 'border-cyan-500/70 bg-cyan-500/10' : 'border-white/10 bg-white/5'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-base font-semibold ${isActive ? 'text-cyan-300' : 'text-white'}`}>
+                        {simulation.name}
+                      </p>
+                      {isActive && (
+                        <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                          active
+                        </span>
                       )}
-                      <Button size="2" variant="surface" color="gray" onClick={() => handleRenameSimulation(simulation.id)}>
-                        Renommer
-                      </Button>
-                      <Button size="2" variant="soft" color="crimson" onClick={() => handleDeleteSimulation(simulation.id)}>
-                        Supprimer
-                      </Button>
-                    </Flex>
-                  </Flex>
-                </Box>
-              )
-            })}
-          </Flex>
-        </Flex>
-      </Card>
+                    </div>
+                    <p className="text-xs text-white/60">
+                      Mise à jour : {dateFormatter.format(new Date(simulation.updatedAt))}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isActive && (
+                      <button
+                        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white transition hover:border-cyan-400 hover:bg-cyan-500/10 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-0"
+                        onClick={() => handleSelectSimulation(simulation.id)}
+                      >
+                        Ouvrir
+                      </button>
+                    )}
+                    <button
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white transition hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-0"
+                      onClick={() => handleRenameSimulation(simulation.id)}
+                    >
+                      Renommer
+                    </button>
+                    <button
+                      className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-400 hover:bg-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-0"
+                      onClick={() => handleDeleteSimulation(simulation.id)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
-      <Grid columns="repeat(auto-fit, minmax(320px, 1fr))" gap="4">
-        <Card>
-          <Flex direction="column" gap="3">
-            <Heading size="4">Données activité</Heading>
-            <LabeledInput
-              label="TJM HT (€)"
-              value={tjm}
-              onChange={(value) => setTjm(Number(value) || 0)}
-            />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className={cardClass}>
+          <div className="flex flex-col gap-3">
+            <h3 className={sectionTitleClass}>Données activité</h3>
+            <LabeledInput label="TJM HT (€)" value={tjm} onChange={(value) => setTjm(Number(value) || 0)} />
             <LabeledInput
               label="Jours facturés dans l'année"
               value={daysWorked}
               onChange={(value) => setDaysWorked(Number(value) || 0)}
             />
-            <Text size="2" color="gray">
+            <p className={helperTextClass}>
               Chiffre d'affaires annuel estimé : {currencyFormatter.format(annualTurnover)} HT
-            </Text>
-          </Flex>
-        </Card>
+            </p>
+          </div>
+        </div>
 
-        <Card>
-          <Flex direction="column" gap="3">
-            <Heading size="4">Rémunération salariale</Heading>
+        <div className={cardClass}>
+          <div className="flex flex-col gap-3">
+            <h3 className={sectionTitleClass}>Rémunération salariale</h3>
             <LabeledInput
               label="Salaire net mensuel visé (€)"
               value={monthlyNetSalary}
@@ -545,85 +520,82 @@ const [initialSimulationState] = useState(() => {
               value={(monthlyTaxRate * 100).toFixed(1).replace('.', ',')}
               onChange={(value) => setMonthlyTaxRate((parseLocaleDecimal(value) || 0) / 100)}
             />
-            <Separator size="4" />
-            <Flex direction="column" gap="2" className="text-sm text-white/80">
+            <div className="my-2 h-px w-full bg-white/10" />
+            <div className="flex flex-col gap-2 text-sm text-white/80">
               <InlineDetail label="Net annuel" value={currencyFormatter.format(annualNetSalary)} />
               <InlineDetail label="Salaire brut annuel" value={currencyFormatter.format(annualGrossSalary)} />
               <InlineDetail label="Charges patronales" value={currencyFormatter.format(annualEmployerContrib)} />
               <InlineDetail label="Coût total de la rémunération" value={currencyFormatter.format(totalPayrollCost)} />
               <InlineDetail label="Net après PAS" value={currencyFormatter.format(netSalaryAfterWithholding)} />
-            </Flex>
-          </Flex>
-        </Card>
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <Flex direction="column" gap="3">
-            <Flex justify="between" align="center">
-              <Heading size="4">Charges déductibles</Heading>
-              <Button size="2" onClick={addCharge} variant="soft" color="cyan">
+        <div className={cardClass}>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className={sectionTitleClass}>Charges déductibles</h3>
+              <button
+                onClick={addCharge}
+                className="rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-400 hover:bg-cyan-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-0"
+              >
                 Ajouter
-              </Button>
-            </Flex>
-            <Inset clip="padding-box" side="all">
-              <Flex direction="column" gap="3">
-                {deductibleCharges.map((charge) => (
-                  <Flex key={charge.id} gap="2" align="center">
-                    <TextField.Root
-                      value={charge.label}
-                      onChange={(event) => updateCharge(charge.id, 'label', event.target.value)}
-                      placeholder="Nom de la charge"
-                      className="flex-1"
-                    />
-                    <TextField.Root
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {deductibleCharges.map((charge) => (
+                <div key={charge.id} className="flex flex-col gap-2 rounded-lg border border-white/5 bg-white/5 p-3">
+                  <input
+                    value={charge.label}
+                    onChange={(event) => updateCharge(charge.id, 'label', event.target.value)}
+                    placeholder="Nom de la charge"
+                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
                       value={charge.amount || ''}
                       inputMode="decimal"
                       onChange={(event) => updateCharge(charge.id, 'amount', event.target.value)}
-                      className="w-32"
+                      className="w-32 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
                       placeholder="€"
                     />
-                    <Button size="2" color="crimson" variant="soft" onClick={() => removeCharge(charge.id)}>
+                    <button
+                      className="ml-auto rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-100 transition hover:border-red-400 hover:bg-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-0"
+                      onClick={() => removeCharge(charge.id)}
+                    >
                       Supprimer
-                    </Button>
-                  </Flex>
-                ))}
-                {deductibleCharges.length === 0 && (
-                  <Text size="2" color="gray">
-                    Ajoutez vos charges (logiciels, déplacements, matériel…).
-                  </Text>
-                )}
-              </Flex>
-            </Inset>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {deductibleCharges.length === 0 && (
+                <p className={helperTextClass}>Ajoutez vos charges (logiciels, déplacements, matériel…).</p>
+              )}
+            </div>
             <InlineDetail label="Total charges" value={currencyFormatter.format(totalDeductibles)} />
-          </Flex>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <Flex direction="column" gap="3">
-            <Heading size="4">Hypothèses SASU</Heading>
-            <LabeledInput
-              label="Part salariale (net → brut)"
-              suffix="%"
-              value={(employeeContribRate * 100).toFixed(1)}
-              onChange={(value) => setEmployeeContribRate((Number(value) || 0) / 100)}
-            />
-            <LabeledInput
-              label="Charges patronales"
-              suffix="%"
-              value={(employerContribRate * 100).toFixed(1)}
-              onChange={(value) => setEmployerContribRate((Number(value) || 0) / 100)}
-            />
+        <div className={cardClass}>
+          <div className="flex flex-col gap-3">
+            <h3 className={sectionTitleClass}>Hypothèses SASU</h3>
+            <InlineDetail label="Part salariale (net → brut)" value={formatRate(EMPLOYEE_CONTRIB_RATE)} />
+            <InlineDetail label="Charges patronales" value={formatRate(EMPLOYER_CONTRIB_RATE)} />
             <LabeledInput
               label="IS réduit (0€ → 42 500€)"
               suffix="%"
               value={(corporateTaxReducedRate * 100).toFixed(1)}
-              onChange={(value) => setCorporateTaxReducedRate((Number(value) || 0) / 100)}
+              readOnly
             />
             <LabeledInput
               label="IS normal (> 42 500€)"
               suffix="%"
               value={(corporateTaxNormalRate * 100).toFixed(1)}
-              onChange={(value) => setCorporateTaxNormalRate((Number(value) || 0) / 100)}
+              readOnly
             />
+            <p className={helperTextClass}>
+              Les taux d&apos;IS sont appliqués automatiquement et ne peuvent pas être modifiés.
+            </p>
             <LabeledInput
               label="Seuil IS réduit (€)"
               value={corporateTaxThreshold}
@@ -635,39 +607,43 @@ const [initialSimulationState] = useState(() => {
               value={(dividendFlatTaxRate * 100).toFixed(1)}
               onChange={(value) => setDividendFlatTaxRate((Number(value) || 0) / 100)}
             />
-            <Text size="2" color="gray">
-              Ajustez les taux pour refléter votre situation (ACRE, taux réduit d'IS, exonérations locales…).
-            </Text>
-          </Flex>
-        </Card>
-      </Grid>
+            <p className={helperTextClass}>
+              Taux moyens en vigueur appliqués automatiquement (hors exonérations, ACRE, AT/MP spécifique, mutuelle…).
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <Card>
-        <Flex direction="column" gap="3">
-          <Heading size="5">Résultats annuels</Heading>
-          <Grid columns="repeat(auto-fit, minmax(240px, 1fr))" gap="3">
+      <div className={cardClass}>
+        <div className="flex flex-col gap-3">
+          <h3 className="text-2xl font-semibold text-white">Résultats annuels</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <SummaryStat label="Résultat avant IS" value={currencyFormatter.format(resultBeforeTax)} tone="amber" />
             <SummaryStat label="IS dû" value={currencyFormatter.format(corporateTax)} tone="amber" />
-            <SummaryStat label="Résultat distribuable" value={currencyFormatter.format(distributableResult)} tone="cyan" />
+            <SummaryStat
+              label="Résultat distribuable"
+              value={currencyFormatter.format(distributableResult)}
+              tone="cyan"
+            />
             <SummaryStat label="Dividendes nets (PFU)" value={currencyFormatter.format(netDividends)} tone="cyan" />
             <SummaryStat label="Revenu net total" value={currencyFormatter.format(totalTakeHome)} tone="jade" />
-          </Grid>
-          <Text size="2" color="gray">
+          </div>
+          <p className={helperTextClass}>
             Le revenu net total additionne la rémunération nette après prélèvement à la source et les dividendes après
-            PFU (30 % par défaut). Les montants sont exprimés en euros et arrondis à l'unité.
-          </Text>
-        </Flex>
-      </Card>
+            PFU (30 % par défaut). Les montants sont exprimés en euros et arrondis à l&apos;unité.
+          </p>
+        </div>
+      </div>
 
-      <Card>
-        <Flex direction="column" gap="3">
-          <Heading size="4">Notes méthodologiques</Heading>
-          <TextArea
+      <div className={cardClass}>
+        <div className="flex flex-col gap-3">
+          <h3 className={sectionTitleClass}>Notes méthodologiques</h3>
+          <textarea
             readOnly
-            className="text-sm"
+            className="min-h-[220px] w-full rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white placeholder:text-white/40 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
             value={`Hypothèses simplifiées pour une SASU avec président assimilé salarié :\n\n- Charges sociales : ${formatRate(
-              employeeContribRate,
-            )} salariales (net -> brut) et ${formatRate(employerContribRate)} patronales.\n- IS : ${formatRate(
+              EMPLOYEE_CONTRIB_RATE,
+            )} salariales (net -> brut) et ${formatRate(EMPLOYER_CONTRIB_RATE)} patronales (taux moyens, hors exonérations spécifiques).\n- IS : ${formatRate(
               corporateTaxReducedRate,
             )} de 0€ à ${corporateTaxThreshold.toLocaleString('fr-FR', {
               maximumFractionDigits: 0,
@@ -677,9 +653,9 @@ const [initialSimulationState] = useState(() => {
               dividendFlatTaxRate,
             )} (12,8% IR + 17,2% prélèvements sociaux) sans abattement.\n- Le calcul exclut la TVA et les éventuels acomptes/provisions (URSSAF, IS).\n- Ajustez les taux si vous bénéficiez de dispositifs spécifiques (ACRE, taux réduit d'IS, exonérations locales).`}
           />
-        </Flex>
-      </Card>
-    </Flex>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -688,57 +664,60 @@ function LabeledInput({
   value,
   onChange,
   suffix,
+  readOnly = false,
 }: {
   label: string
   value: string | number
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
   suffix?: string
+  readOnly?: boolean
 }) {
+  const inputClasses =
+    'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-70'
+
   return (
-    <Flex direction="column" gap="2">
-      <Text as="label" size="2" weight="medium">
-        {label}
-      </Text>
-      <TextField.Root
-        value={value}
-        inputMode="decimal"
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full"
-        placeholder="0"
-      >
+    <label className="flex flex-col gap-2">
+      <span className="text-sm font-medium text-white">{label}</span>
+      <div className="relative">
+        <input
+          value={value}
+          inputMode="decimal"
+          readOnly={readOnly}
+          onChange={readOnly || !onChange ? undefined : (event) => onChange(event.target.value)}
+          className={`${inputClasses} ${suffix ? 'pr-12' : ''}`}
+          placeholder="0"
+        />
         {suffix && (
-          <TextField.Slot side="right">
-            <Text color="gray" size="2">
-              {suffix}
-            </Text>
-          </TextField.Slot>
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-white/60">
+            {suffix}
+          </span>
         )}
-      </TextField.Root>
-    </Flex>
+      </div>
+    </label>
   )
 }
 
 function SummaryStat({ label, value, tone }: { label: string; value: string; tone: 'amber' | 'cyan' | 'jade' }) {
+  const toneClasses = {
+    amber: 'text-amber-200',
+    cyan: 'text-cyan-200',
+    jade: 'text-emerald-200',
+  } as const
+
   return (
-    <Box className="rounded-lg border border-white/10 bg-white/5 px-3 py-3">
-      <Text size="2" color="gray" weight="medium">
-        {label}
-      </Text>
-      <Text size="5" weight="bold" color={tone}>
-        {value}
-      </Text>
-    </Box>
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+      <p className="text-sm text-white/60">{label}</p>
+      <p className={`text-2xl font-bold ${toneClasses[tone]}`}>{value}</p>
+    </div>
   )
 }
 
 function InlineDetail({ label, value }: { label: string; value: string }) {
   return (
-    <Flex align="center" justify="between" className="text-white/80">
-      <Text size="2">{label}</Text>
-      <Text size="2" weight="medium">
-        {value}
-      </Text>
-    </Flex>
+    <div className="flex items-center justify-between text-white/80">
+      <span className="text-sm">{label}</span>
+      <span className="text-sm font-semibold">{value}</span>
+    </div>
   )
 }
 

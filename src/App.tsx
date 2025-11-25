@@ -1,18 +1,17 @@
-import { Flex, Heading, Separator, Text } from '@radix-ui/themes'
 import Home from './views/Home'
 
 function App() {
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-4 py-6">
-      <Flex align="center" justify="between" mb="4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <Heading size="6">Simulateur revenus SASU</Heading>
-          <Text as="p" size="2" color="gray">
+          <h1 className="text-4xl font-semibold text-white">Simulateur revenus SASU</h1>
+          <p className="text-sm text-white/70">
             TJM → rémunération + dividendes (France, président assimilé salarié)
-          </Text>
+          </p>
         </div>
-      </Flex>
-      <Separator size="4" className="mb-6" />
+      </div>
+
       <Home />
     </div>
   )
